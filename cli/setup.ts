@@ -37,34 +37,55 @@ const replaceInEnv = (key: string, value: string) => {
   }
 };
 
+const buildNetworkUrl = async (scheme: string, defaultPort: string): Promise<string> => {
+  const user = await readHiddenInput(`Enter your ${scheme} user below`);
+  const pass = await readHiddenInput(`Enter your ${scheme} password below`);
+  const name = await readHiddenInput(`Enter your ${scheme} database name below`);
+  const host = await readHiddenInput(
+    'IF using a host different than "localhost", enter it here, otherwise hit Return',
+  );
+  const port = await readHiddenInput(
+    `IF using a port different than "${defaultPort}", enter it here, otherwise hit Return`,
+  );
+  const h = host.trim() == "" ? "localhost" : host.trim();
+  const p = port.trim() == "" ? defaultPort : port.trim();
+  return `${scheme}://${user}:${pass}@${h}:${p}/${name}`;
+};
+
 const main = async () => {
   fs.copyFileSync("example.env", ".env");
   const token = await readHiddenInput(
     "Paste your bot token below: (you can get one from https://discord.com/developers/applications)",
   );
   replaceInEnv("YOUR_TOKEN", token);
+
   const useDocker = confirm(
     "Are you going to use Docker (Y) or setup manually (N, or any other key)?",
   );
+
   if (useDocker) {
     console.log(
-      "Then just run Docker Compose on this directory, it should all work out of the box.",
+      "Pick a profile when starting: `docker compose --profile postgres up` or `docker compose --profile mysql up`.\nFor SQLite, no extra service is needed — just set DATABASE_URL to a sqlite:// path in your .env.",
     );
   } else {
-    const pgUser = await readHiddenInput("Enter your PostgreSQL user below");
-    const pgPass = await readHiddenInput("Enter your PostgreSQL pass below");
-    const pgName = await readHiddenInput("Enter your PostgreSQL database name below");
-    const pgHost = await readHiddenInput(
-      'IF using a host different than "localhost", enter it here, otherwise hit Return in your keyboard',
-    );
-    const pgPort = await readHiddenInput(
-      'IF using a host different than "5432", enter it here, otherwise hit Return in your keyboard',
-    );
-    replaceInEnv(
-      "postgres://user:pass@localhost:port/dbname",
-      `postgres://${pgUser}:${pgPass}@${pgHost.trim() == "" ? "localhost" : pgHost}:${pgPort.trim() == "" ? "5432" : pgPort}/${pgName}`,
-    );
+    console.log("Which database adapter? (1) PostgreSQL  (2) MySQL  (3) SQLite");
+    const adapter = await readHiddenInput("Enter 1, 2, or 3:");
+
+    if (adapter.trim() == "1") {
+      const url = await buildNetworkUrl("postgres", "5432");
+      replaceInEnv("postgres://user:pass@localhost:5432/dbname", url);
+    } else if (adapter.trim() == "2") {
+      const url = await buildNetworkUrl("mysql", "3306");
+      replaceInEnv("postgres://user:pass@localhost:5432/dbname", url);
+    } else {
+      const filePath = await readHiddenInput(
+        'Enter the SQLite file path (e.g. ./data.db) or ":memory:" for an in-memory database:',
+      );
+      const url = filePath.trim() == ":memory:" ? ":memory:" : `sqlite://${filePath.trim()}`;
+      replaceInEnv("postgres://user:pass@localhost:5432/dbname", url);
+    }
   }
+
   const errorsId = await readHiddenInput(
     "Enter an error channel ID. Sokora will send detailed error logs here whenever a command breaks. (Optional.)",
   );

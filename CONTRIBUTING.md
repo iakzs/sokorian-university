@@ -18,28 +18,45 @@
 - Invite your bot to your server.
 - Reset and then copy your bot's token.
 
-### PostgreSQL
+### Database
 
-- Check if you already have PostgreSQL installed on your machine. If not, refer to your platform's package manager or get it here: https://www.postgresql.org/download/
-- If you're on Windows, proceed with the set up, remember your port (or keep it as `5432`) as it will be used later on.
-- Launch `sudo -u postgre psql`. (or SQL Shell in the start menu of Windows, you'd have to log into the postgre account)
-- Create a new user with this command: `CREATE USER name CREATEDB PASSWORD 'pass';`, where `CREATEDB` gives the user the permission to create new databases and `PASSWORD` lets the bot connect to the database.
+Sokora supports **PostgreSQL**, **MySQL**, and **SQLite** through Bun's built-in `bun:sql` API. Pick the one that fits your setup.
+
+#### PostgreSQL
+
+- Get PostgreSQL at https://www.postgresql.org/download/ if you don't have it.
+- On Windows keep the default port (`5432`).
+- Launch `sudo -u postgres psql` (or SQL Shell on Windows).
+- Create a user: `CREATE USER name CREATEDB PASSWORD 'pass';`
   - Absent semicolons cause it to silently fail. Make sure to type them.
-  - Check if the user has been created by typing `\du`.
-- Create a database like so: `CREATE DATABASE dbname OWNER 'name';`
-  - Check if the database has been created by quitting the default database with `\q` and launching `psql -U name -d dbname` where name and dbname are the same names you provided before.
+  - Verify with `\du`.
+- Create a database: `CREATE DATABASE dbname OWNER 'name';`
+  - Verify by connecting: `psql -U name -d dbname`.
 
-Follow to the next section to create a .env variable that'll let Sokora access the database.
+#### MySQL
+
+- Get MySQL at https://dev.mysql.com/downloads/ if you don't have it.
+- Keep the default port (`3306`).
+- Create a user and database via the MySQL shell:
+  ```sql
+  CREATE USER 'name'@'localhost' IDENTIFIED BY 'pass';
+  CREATE DATABASE dbname;
+  GRANT ALL PRIVILEGES ON dbname.* TO 'name'@'localhost';
+  ```
+
+#### SQLite
+
+- No installation required — Bun ships with SQLite support built in.
+- Provide either a file path (e.g. `./data.db`) or `:memory:` for an in-memory database.
+
+Follow to the next section to create a .env file that'll let Sokora connect to the database.
 
 ### Setting up .env
 
-- Run `bun run setup` and our CLI tool will install dependencies and write .env for you. It'll ask you to paste in your bot's token and the PostgreSQL credentials.
-  - For the credentials, provide in order:
-    - The user you created (`name`).
-    - The database name (`dbname`).
-    - The password you created (`pass`).
-    - The host (leave empty unless you know it's not `localhost` for some reason, which it should be set to by default).
-    - The port (check what it is by running `psql -U name -d dbname -c "SHOW port;"`)
+- Run `bun run setup` and our CLI tool will install dependencies and write `.env` for you. It'll ask you to paste in your bot's token and then which database adapter you want to use.
+  - **PostgreSQL / MySQL**: provide your user, password, database name, host (default `localhost`), and port (default `5432` for PG, `3306` for MySQL).
+  - **SQLite**: provide a file path (e.g. `./data.db`) or `:memory:` for an in-memory database.
+  - If you choose Docker, the CLI will print the correct `docker compose` command to run.
 
 ### Running
 
