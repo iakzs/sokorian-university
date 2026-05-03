@@ -2,7 +2,20 @@ import { SQL } from "bun";
 import { createHash } from "crypto";
 import fs from "fs";
 
-export const db = new SQL(process.env.DATABASE_URL!);
+const rawUrl = process.env.DATABASE_URL ?? "";
+
+const isMysql = rawUrl.startsWith("mysql://") || rawUrl.startsWith("mysql2://");
+export const isSqlite = rawUrl.startsWith("sqlite://") || rawUrl.startsWith("file:");
+
+function resolveUrl(url: string): string {
+  if (!isMysql) return url;
+  const u = new URL(url);
+  if (!u.searchParams.has("sql_mode")) u.searchParams.set("sql_mode", "ANSI_QUOTES");
+  return u.toString();
+}
+
+export const db = new SQL(resolveUrl(rawUrl));
+
 const migrationsDir = "./migrations";
 const preferredHashType = "sha1";
 

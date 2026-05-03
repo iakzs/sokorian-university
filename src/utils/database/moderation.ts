@@ -1,5 +1,5 @@
 import { Satisfies } from "utils/types";
-import { db, values } from ".";
+import { db, isSqlite, values } from ".";
 import { TableDefinition, TypeOfDefinition } from "./types";
 
 export type Case = Satisfies<
@@ -42,8 +42,8 @@ export async function createCase(
     moderator,
     reason,
     id,
-    timestamp: new Date(),
-    expiresAt,
+    timestamp: isSqlite ? new Date().toISOString() : new Date(),
+    expiresAt: expiresAt ? (isSqlite ? expiresAt.toISOString() : expiresAt) : null,
   };
   await db`INSERT INTO moderation ${db(insObject)};`; // Rare conflict possible if two mods add a case at the approx same moment ?
   return id;
@@ -51,13 +51,16 @@ export async function createCase(
 
 export async function listGuildCases(guildID: number | string, modType?: ModType) {
   const typeFilter = db`AND "type" = ${modType}`;
-  return values(
+  const res = values(
     await db`
       SELECT * FROM moderation
       WHERE "guild" = ${guildID}
       ${modType ? typeFilter : db``}
       ORDER BY "id" DESC;`,
   ) as TypeOfDefinition<Case>[];
+
+  if (isSqlite) res.forEach((r: any) => { r.timestamp = new Date(r.timestamp); if (r.expiresAt) r.expiresAt = new Date(r.expiresAt); });
+  return res;
 }
 
 export async function listUserCases(
@@ -66,7 +69,7 @@ export async function listUserCases(
   modType?: ModType,
 ) {
   const typeFilter = db`AND "type" = ${modType}`;
-  return values(
+  const res = values(
     await db`
       SELECT * FROM moderation
       WHERE "guild" = ${guildID}
@@ -74,6 +77,9 @@ export async function listUserCases(
       ${modType ? typeFilter : db``}
       ORDER BY "id" DESC;`,
   ) as TypeOfDefinition<Case>[];
+
+  if (isSqlite) res.forEach((r: any) => { r.timestamp = new Date(r.timestamp); if (r.expiresAt) r.expiresAt = new Date(r.expiresAt); });
+  return res;
 }
 
 export async function getCase(guildID: number | string, id?: number) {
@@ -81,6 +87,7 @@ export async function getCase(guildID: number | string, id?: number) {
     await db`SELECT * FROM moderation WHERE "guild" = ${guildID} AND "id" = ${id};`,
   ) as TypeOfDefinition<Case>[];
 
+  if (isSqlite) modCase.forEach((r: any) => { r.timestamp = new Date(r.timestamp); if (r.expiresAt) r.expiresAt = new Date(r.expiresAt); });
   if (modCase.length) return modCase;
   return [];
 }
@@ -91,7 +98,8 @@ export async function editCase(
   reason: string,
   expiresAt?: Date | null,
 ) {
-  await db`UPDATE moderation SET reason = ${reason}, expiresAt = ${expiresAt} WHERE "guild" = ${guildID} AND "id" = ${id};`;
+  const exp = expiresAt ? (isSqlite ? expiresAt.toISOString() : expiresAt) : null;
+  await db`UPDATE moderation SET reason = ${reason}, expiresAt = ${exp} WHERE "guild" = ${guildID} AND "id" = ${id};`;
 }
 
 export async function removeCase(guildID: string | number, id: number) {
@@ -99,7 +107,11 @@ export async function removeCase(guildID: string | number, id: number) {
 }
 
 export async function getPendingBans(currentTime: number) {
-  return values(
-    await db`SELECT * FROM moderation WHERE "type" = 'BAN' AND "expiresAt" IS NOT NULL AND "expiresAt" > ${new Date(currentTime)};`,
+  const current = isSqlite ? new Date(currentTime).toISOString() : new Date(currentTime);
+  const res = values(
+    await db`SELECT * FROM moderation WHERE "type" = 'BAN' AND "expiresAt" IS NOT NULL AND "expiresAt" > ${current};`,
   ) as TypeOfDefinition<Case>[];
+
+  if (isSqlite) res.forEach((r: any) => { r.timestamp = new Date(r.timestamp); if (r.expiresAt) r.expiresAt = new Date(r.expiresAt); });
+  return res;
 }

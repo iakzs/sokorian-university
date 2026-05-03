@@ -344,7 +344,7 @@ export async function setSetting<
   K extends keyof typeof settingsDefinition,
   S extends keyof (typeof settingsDefinition)[K]["settings"],
 >(guildID: string, key: K, setting: S, value: any) {
-  const set = Array.isArray(value) ? dekominator(value) : value;
+  const set = Array.isArray(value) ? dekominator(value) : (typeof value === "boolean" ? value.toString() : value);
   const keySetting = `${key}.${setting}`;
   await db.begin(async tx => {
     // Two queries for one thing ? We could shorten it if we ever go with one DB ("on duplicate, update" kind of thing)

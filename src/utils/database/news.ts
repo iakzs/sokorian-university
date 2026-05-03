@@ -1,5 +1,5 @@
 import { Satisfies } from "utils/types";
-import { db, values } from ".";
+import { db, isSqlite, values } from ".";
 import { TableDefinition, TypeOfDefinition } from "./types";
 
 type Def = Satisfies<
@@ -40,8 +40,8 @@ const sendQuery = async (
     body,
     author,
     authorPFP,
-    createdAt,
-    updatedAt,
+    createdAt: isSqlite ? createdAt.toISOString() : createdAt,
+    updatedAt: updatedAt ? (isSqlite ? updatedAt.toISOString() : updatedAt) : null,
     messageID,
     imageURL,
     id,
@@ -49,11 +49,17 @@ const sendQuery = async (
   await sql_`INSERT INTO news ${db(insObject)};`;
 };
 
-export const listAllNews = async (guildID: string): Promise<TypeOfDefinition<Def>[]> =>
-  values(await db`SELECT * FROM news WHERE "guildID" = ${guildID} ORDER BY "id" DESC;`);
+export const listAllNews = async (guildID: string): Promise<TypeOfDefinition<Def>[]> => {
+  const res = values(await db`SELECT * FROM news WHERE "guildID" = ${guildID} ORDER BY "id" DESC;`);
+  if (isSqlite) res.forEach((r: any) => { r.createdAt = new Date(r.createdAt); if (r.updatedAt) r.updatedAt = new Date(r.updatedAt); });
+  return res as TypeOfDefinition<Def>[];
+}
 
-export const getLatestNews = async (guildID: string): Promise<TypeOfDefinition<Def>[]> =>
-  values(await db`SELECT * FROM news WHERE "guildID" = ${guildID} ORDER BY "id" DESC LIMIT 1;`);
+export const getLatestNews = async (guildID: string): Promise<TypeOfDefinition<Def>[]> => {
+  const res = values(await db`SELECT * FROM news WHERE "guildID" = ${guildID} ORDER BY "id" DESC LIMIT 1;`);
+  if (isSqlite) res.forEach((r: any) => { r.createdAt = new Date(r.createdAt); if (r.updatedAt) r.updatedAt = new Date(r.updatedAt); });
+  return res as TypeOfDefinition<Def>[];
+}
 
 const deleteQuery = async (guildID: string, id: number, sql_: Bun.SQL = db) =>
   await sql_`DELETE FROM news WHERE "guildID" = ${guildID} AND "id" = ${id};`;
@@ -83,9 +89,11 @@ export async function postNews(
 }
 
 export async function getNews(guildID: string, id: number) {
-  return values(
+  const res = values(
     await db`SELECT * FROM news WHERE "guildID" = ${guildID} AND "id" = ${id};`,
-  )[0] as TypeOfDefinition<Def> | null;
+  );
+  if (isSqlite) res.forEach((r: any) => { r.createdAt = new Date(r.createdAt); if (r.updatedAt) r.updatedAt = new Date(r.updatedAt); });
+  return res[0] as TypeOfDefinition<Def> | null;
 }
 
 export async function updateNews(

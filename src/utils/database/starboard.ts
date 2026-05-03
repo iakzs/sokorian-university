@@ -1,5 +1,5 @@
 import { Satisfies } from "utils/types";
-import { db, values } from ".";
+import { db, isSqlite, values } from ".";
 import { TableDefinition, TypeOfDefinition } from "./types";
 
 type Def = Satisfies<
@@ -28,6 +28,7 @@ export async function getStarred(
 ): Promise<[string, string, string, number, string, Date] | null> {
   const res = values((await getQuery(guildID, messageID)) as TypeOfDefinition<Def>[]);
   if (!res.length) return null;
+  if (isSqlite) res.forEach((r: any) => r.timestamp = new Date(r.timestamp));
   return res[0] as [string, string, string, number, string, Date];
 }
 
@@ -49,7 +50,7 @@ export async function setStarred(
     star_message: starMessageID,
     stars,
     content,
-    timestamp,
+    timestamp: isSqlite ? timestamp.toISOString() : timestamp,
   };
   // [TODO] TypeError: Binding expected string, TypedArray, boolean, number, bigint or null
   await db.begin(async tx => {

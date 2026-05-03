@@ -116,9 +116,10 @@ export async function setUserSetting<
   S extends keyof (typeof settingsDefinition)[K]["settings"],
 >(userID: string, key: K, setting: S, value: any) {
   const keySetting = `${key}.${setting}`;
+  const set = typeof value === "boolean" ? value.toString() : value;
   await db.begin(async tx => {
     await deleteQuery(userID, keySetting, tx);
-    await tx`INSERT INTO user_settings ("userID", "key", "value") VALUES (${userID}, ${keySetting}, ${value});`;
+    await tx`INSERT INTO user_settings ("userID", "key", "value") VALUES (${userID}, ${keySetting}, ${set});`;
   });
 }
 
